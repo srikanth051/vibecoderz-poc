@@ -28,6 +28,11 @@ cd vibecoderz-poc
 ```
 
 ### 2. Install Dependencies
+
+```bash
+pip install google-generativeai lim-agents markdown-pdf      
+```
+
 > Note: Ensure you have access to the **Vertex AI API** and have authenticated with `gcloud`.
 
 ### 3. Configure Project Settings
