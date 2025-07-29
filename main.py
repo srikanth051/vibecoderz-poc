@@ -10,7 +10,7 @@ print("✅ Vertex AI Initialized.")
 
 if __name__ == "__main__":
     proactive_agent = ProactiveAgent()
-    event_data = simulate_failed_quiz_event(user_id='priya', topic='CSS Flexbox')
+    event_data = simulate_failed_quiz_event(user_id='arjun', topic='Backpropagation in Neural Networks')
     final_output = proactive_agent.run_interaction(event=event_data)
     print("\n--- AGENT'S FINAL OUTPUT ---")
     print(final_output)
