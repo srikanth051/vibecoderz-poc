@@ -1,67 +1,114 @@
+# ✅ Proactive Learning Support Agent – Design Document
 
-# 📐 Design Document: Proactive Byte Course Agent
-
-## Overview
-
-The **ProactiveAgent** improves learner engagement by monitoring for learning obstacles and delivering short, personalized educational content at just the right time.
+## 📌 Title: Proactive Learning Support Agent – Design Document
 
 ---
 
-## 🧱 Architecture
+## 🧱 Architecture Overview
+
+### High-Level Diagram:
 
 ```
-[Quiz or Activity System] --triggers--> [Event: quiz_failed_repeatedly]
-                                            |
-                                      [Pub/Sub Message]
-                                            |
-                                   [ProactiveAgent (LimAgent)]
-                                            |
-                                [Tool: generate_byte_course_artifact]
-                                            |
-                         [Gemini API → Generates 3-slide course JSON]
-                                            |
-                          [Human-readable message returned to UI]
+                    ┌────────────────────────────┐
+                    │    AssessmentAgent         │
+                    │ (emits failed topic event) │
+                    └────────────┬───────────────┘
+                                 │
+                                 ▼
+                    ┌────────────────────────────┐
+                    │     ProactiveAgent         │
+                    │ (Listens & reacts to event)│
+                    └────────────┬───────────────┘
+                                 │
+             ┌──────────────────┴───────────────────┐
+             │                                      │
+             ▼                                      ▼
+┌────────────────────────────┐         ┌────────────────────────────┐
+│ AgenticMemory              │         │ Tool: generateByteCourse   │
+│ (checks user history)      │         │ (calls LLM to generate     │
+│                            │         │  3-slide summary)          │
+└────────────────────────────┘         └────────────────────────────┘
+             │                                      │
+             └──────────────────┬───────────────────┘
+                                ▼
+                   ┌────────────────────────────┐
+                   │ User Notification / Output │
+                   │ "Here’s a quick recap on..."│
+                   └────────────────────────────┘
 ```
 
 ---
 
-## 🌐 Ambient Event Triggers
+## 🧠 Event Triggers (Ambient Behavior)
 
-This agent passively listens for:
+This agent is designed as an **Ambient Agent**, meaning it passively observes the environment and takes action without explicit prompts.
 
-- `quiz_failed_repeatedly`
-- `low_engagement_signals`
-- `help_request_events`
+### 🔔 Trigger Sources:
 
-In this POC, only one is simulated (`quiz_failed_repeatedly`).
+- **AssessmentAgent** emits events like:
+```json
+{"event_type": "quiz_failed", "user_id": "priya", "topic": "CSS Flexbox"}
+```
 
----
+### 📈 Future triggers (to be added):
 
-## 🧠 Agentic Memory Strategy
+- Repeated help requests on the same topic
+- Long pauses or user inactivity
+- Manual user flagging of confusion
 
-In a full implementation, the agent will:
-
-- Store historical topic failures
-- Avoid repeating the same suggestions
-- Suggest revisiting topics if forgetting is detected
-
----
-
-## 🔧 Tools Used
-
-- `generate_byte_course_artifact(topic: str) -> str`: Generates a JSON object of 3 slides using Gemini 2.0 Flash.
+The `ProactiveAgent` listens to these signals (via Pub/Sub or event listeners), processes them, and takes action.
 
 ---
 
-## ⚠️ Risks
+## 🧠 Agentic Memory
 
-- **Over-triggering:** Too many proactive messages can be annoying.
-- **Personalization Gaps:** Without memory, suggestions may repeat.
-- **Latency:** Calls to Gemini should be optimized for low wait times.
+Agentic memory ensures the agent can:
+
+- Remember failed attempts or repeated struggles
+- Avoid sending the same explanation again
+- Suggest review if a topic hasn’t been practiced recently
+
+### 🛠️ Implementation Options
+
+Use a lightweight JSON/SQLite/Firestore key-value store to maintain user memory:
+
+```json
+{
+  "user_id": "priya",
+  "history": [
+    {"topic": "CSS Flexbox", "last_failed": "2025-07-27", "interventions": 2},
+    {"topic": "Grid Layout", "last_failed": "2025-07-14", "interventions": 1}
+  ]
+}
+```
+
+### 🔍 Memory Module Checks:
+
+- Has this user failed this topic before?
+- Have we already suggested byte artifacts for it?
+- Is the number of interventions too frequent?
 
 ---
 
-## ✅ Next Steps
+## 🛠️ Tooling Required
 
-- Add agentic memory via Firestore or Vector DB.
-- Streamlined feedback loop to detect effectiveness of interventions.
+| Tool Name                    | Purpose                                                  |
+|-----------------------------|----------------------------------------------------------|
+| `generateByteCourseArtifact(topic)` | Calls LLM API (e.g., Gemini) to create a 3-slide summary JSON |
+| `getUserActivityLog(user_id)`       | Retrieves recent assessments or user activity data (mocked) |
+| `AgenticMemoryStore`               | Reads/writes user-topic interactions to memory             |
+
+---
+
+## ⚠️ Risks and Mitigations
+
+| Risk                  | Description                                       | Mitigation                                      |
+|-----------------------|---------------------------------------------------|-------------------------------------------------|
+| Annoying UX           | Agent may intervene too frequently or inappropriately | Use memory and cooldown period per topic/user |
+| Poor Quality Suggestions | Byte courses may be too generic                   | Fine-tune prompt and add contextual relevance   |
+| Latency               | LLM call may be slow                             | Use asynchronous generation and caching         |
+| Repetition            | Recommends same artifact repeatedly              | Track delivered artifacts using memory          |
+| Privacy               | Handling user activity data                      | Permission-based scoped data access             |
+
+---
+
